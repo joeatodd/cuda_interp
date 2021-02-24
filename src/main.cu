@@ -33,6 +33,7 @@
 
 #include "memops.cu"
 #include "data.h"
+#include "kernels.cu"
 
 using std::vector;
 using std::cout;
@@ -48,28 +49,12 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
    }
 }
 
-
-__global__
-void multVal(int n, float coeff, float *x){
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  if (idx < n){
-    x[idx] *= coeff; // In-place multiplication (is this allowed?)
-  }
-}
-
-// 3D pitched equivalent of prev
-__global__
-void multVal3D(cudaPitchedPtr pitchPtr, cudaExtent ext, float coeff){
-  size_t pitch = pitchPtr.pitch;
-
-
-}
-
 int main(){
+
   /* Declare dimensions for test array */
   int nx = 100, ny = 200, nz = 15; // Dimension
-  double lx = 1000.0, ly = 1000.0, lz = 20.0; // Spacing
-  double ox = 0.0, oy = 0.0, oz = 0.0; // Origin
+  /* double lx = 1000.0, ly = 1000.0, lz = 20.0; // Spacing */
+  /* double ox = 0.0, oy = 0.0, oz = 0.0; // Origin */
 
   vector<std::string> dim_names = {"x","y","z"};
   vector<std::string> var_names = {"temperature"};
@@ -79,6 +64,60 @@ int main(){
   if(retval){cout << "NetCDF Error" << endl; return retval;}
 
   // TODO - determine dimension order here!
+
+  // try the max function
+  double *dfield, *dmax, *dtest;
+  int nvals = fields[0].size();
+  int blocksize = 512;
+  int nblocks = (nvals + blocksize - 1) / blocksize;
+
+  cudaMalloc(&dfield, nvals*sizeof(double));
+  /* cudaMalloc(&dmax, (nvals+1)/2); */
+  cudaMalloc(&dmax, nvals*sizeof(double));
+  cudaMemcpy(dfield, &fields[0][0], nvals*sizeof(double), cudaMemcpyHostToDevice);
+
+  // OK simple copy function instead...
+  cout << "Running copyVal with " << nblocks << " blocks and " << blocksize << " threads per block" << endl;
+  cout << "Nvals: " << nvals << endl;
+
+  /* copyVal<<<nblocks, blocksize>>>(nvals, dfield, dmax); */
+  doubleMult<<<nblocks, blocksize>>>(nvals, dfield);
+  dtest = (double*)malloc(sizeof(double)*nvals);
+  cudaDeviceSynchronize();
+  cudaMemcpy(dtest, dfield, nvals*sizeof(double), cudaMemcpyDeviceToHost);
+
+  cout << "Host multval field 100: " << dtest[100] << endl;
+
+  return 0;
+
+  cudaMemcpy(&dtest, &dmax, nvals*sizeof(double), cudaMemcpyDeviceToHost);
+
+  cout << "Host copyval field 0: " << dtest[0] << endl;
+
+
+  cout << "Host Field 0: " << fields[0][0] << endl;
+
+  return 0;
+
+  dtest = (double*)malloc(sizeof(double)*nvals);
+
+  // Repeated calls to kernel w/ block-level reduction
+  int cnt = nvals;
+  while(cnt > 1){
+    cout << "Operating on cnt: " << cnt << endl;
+    maxVal<<<nblocks, blocksize>>>(cnt, dfield, dmax);
+    cudaMemcpy(&dfield, &dmax, nvals*sizeof(double) ,cudaMemcpyDeviceToDevice);
+    cnt = (cnt + blocksize - 1) / blocksize;
+
+    cudaMemcpy(&dtest, &dfield, cnt, cudaMemcpyDeviceToHost);
+    cout << "Value 0 : " << dtest[0] << endl;
+  }
+
+  double maxVal;
+  cudaMemcpy(&maxVal, &dmax, sizeof(double), cudaMemcpyDeviceToHost);
+
+  cout << "Max val from gpu: " << maxVal << endl;
+
 
   /* Allocate the 3D test array */
   int N = nx * ny * nz;
