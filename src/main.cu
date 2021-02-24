@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
+#include <algorithm>
 
 #include "memops.cu"
 #include "data.h"
@@ -71,53 +72,27 @@ int main(){
   int blocksize = 512;
   int nblocks = (nvals + blocksize - 1) / blocksize;
 
-  cudaMalloc(&dfield, nvals*sizeof(double));
-  /* cudaMalloc(&dmax, (nvals+1)/2); */
-  cudaMalloc(&dmax, nvals*sizeof(double));
-  cudaMemcpy(dfield, &fields[0][0], nvals*sizeof(double), cudaMemcpyHostToDevice);
+  dtest = (double*)malloc(nvals*sizeof(double));
+  gpuErrchk(cudaMalloc((void **)&dfield, nvals*sizeof(double)));
+  gpuErrchk(cudaMalloc((void **)&dmax, nvals*sizeof(double))); // TODO too big!
 
-  // OK simple copy function instead...
-  cout << "Running copyVal with " << nblocks << " blocks and " << blocksize << " threads per block" << endl;
-  cout << "Nvals: " << nvals << endl;
-
-  /* copyVal<<<nblocks, blocksize>>>(nvals, dfield, dmax); */
-  doubleMult<<<nblocks, blocksize>>>(nvals, dfield);
-  dtest = (double*)malloc(sizeof(double)*nvals);
-  cudaDeviceSynchronize();
-  cudaMemcpy(dtest, dfield, nvals*sizeof(double), cudaMemcpyDeviceToHost);
-
-  cout << "Host multval field 100: " << dtest[100] << endl;
-
-  return 0;
-
-  cudaMemcpy(&dtest, &dmax, nvals*sizeof(double), cudaMemcpyDeviceToHost);
-
-  cout << "Host copyval field 0: " << dtest[0] << endl;
-
-
-  cout << "Host Field 0: " << fields[0][0] << endl;
-
-  return 0;
-
-  dtest = (double*)malloc(sizeof(double)*nvals);
+  gpuErrchk(cudaMemcpy(dfield, &fields[0][0],nvals*sizeof(double), cudaMemcpyHostToDevice));
 
   // Repeated calls to kernel w/ block-level reduction
   int cnt = nvals;
   while(cnt > 1){
     cout << "Operating on cnt: " << cnt << endl;
-    maxVal<<<nblocks, blocksize>>>(cnt, dfield, dmax);
-    cudaMemcpy(&dfield, &dmax, nvals*sizeof(double) ,cudaMemcpyDeviceToDevice);
+    maxVal<<<nblocks, blocksize, blocksize*sizeof(double)>>>(cnt, dfield, dmax);
+    gpuErrchk(cudaMemcpy(dfield, dmax, nvals*sizeof(double) ,cudaMemcpyDeviceToDevice));
     cnt = (cnt + blocksize - 1) / blocksize;
-
-    cudaMemcpy(&dtest, &dfield, cnt, cudaMemcpyDeviceToHost);
-    cout << "Value 0 : " << dtest[0] << endl;
   }
 
   double maxVal;
-  cudaMemcpy(&maxVal, &dmax, sizeof(double), cudaMemcpyDeviceToHost);
+  gpuErrchk(cudaMemcpy(&maxVal, dmax, sizeof(double), cudaMemcpyDeviceToHost));
 
   cout << "Max val from gpu: " << maxVal << endl;
-
+  auto maxy = std::max_element(std::begin(fields[0]), std::end(fields[0]));
+  cout << "Max val from cpu:" << *maxy << endl;
 
   /* Allocate the 3D test array */
   int N = nx * ny * nz;
