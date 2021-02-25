@@ -5,6 +5,7 @@
 #include <netcdf.h>
 #include <vector>
 #include <assert.h>
+#include "types.h"
 
 #define netcdfERR(e) {printf("Error: %s\n", nc_strerror(e)); return 2;}
 
@@ -18,12 +19,18 @@ using std::endl;
 
    There is a NetCDF C++ interface but it doesn't seem to be available on
    the machine I'm using, so I'm mixing C++ and C code here.
+
+   @param filename NetCDF filename to read
+   @param dim_names Prescribed dimensions of the data (TODO could read these instead)
+   @param var_names Variable(s) to read
+   @param coords The coordinates of the data (output)
+   @param vars The data array for each variable
 */
-int get_netcdf_data(const std::string filename,
-		    const vector<std::string> dim_names,
-		    const vector<std::string> var_names,
-		    vector<vector<double>> &coords,
-		    vector<vector<double>> &var_values){
+int getNetcdfData(const std::string filename,
+		  const vector<std::string> dim_names,
+		  const vector<std::string> var_names,
+		  vector<vector<double>> &coords,
+		  vector<field_t<double>> &vars){
 
   int ncid, ndims, nvars_in, ngatts, unlimdim, nvars_out;
   int retval;
@@ -43,9 +50,11 @@ int get_netcdf_data(const std::string filename,
     return 2;
   }
 
-  // Read the dimension sizes (for now assume 'x','y','z')
+  // Read the dimension sizes
   vector<size_t> dim_lens;
   vector<int> dim_ids;
+  std::map<int, std::string> dim_map;
+
   dim_lens.resize(3);
   dim_ids.resize(3);
   for (int i = 0; i < 3; i++){
@@ -54,23 +63,26 @@ int get_netcdf_data(const std::string filename,
     retval = nc_inq_dimid(ncid, dim_names[i].c_str(), &dim_id);
     if(retval) netcdfERR(retval);
     dim_ids[i] = dim_id;
+    dim_map[dim_id] = dim_names[i];
 
     retval = nc_inq_dimlen(ncid, dim_ids[i], &dim_len);
     if(retval) netcdfERR(retval);
     dim_lens[i] = dim_len;
   }
 
-
-  std::cout << "Input file has dimensions: ";
+  // Report dimensions
+  cout << "Input file has dimensions: " << endl;
   int nvals = 1;
   for (int i = 0; i < 3; i++){
-    std::cout << dim_lens[i] << " ";
+    cout << dim_names[i] << " - ";
+    cout << "id: " << dim_ids[i] << " ";
+    cout << "size: " << dim_lens[i] << endl;
     nvals *= dim_lens[i];
   }
-  std::cout << endl;
+  cout << endl;
 
-  // TODO - generalise float/double
   // Read coordinates
+  // TODO - generalise float/double
   for (int i = 0; i < 3; i++){
     coords[i].resize(dim_lens[i]);
     retval = nc_get_var_double(ncid, dim_ids[i], &coords[i][0]);
@@ -83,19 +95,111 @@ int get_netcdf_data(const std::string filename,
 
   // Read the variables in turn (flattened)
   // vector<vector<double>> vars(nvars_out);
-  vector<int> var_ids(nvars_out);
-
   for (int i = 0; i < nvars_out; i++){
+
     int varid;
+    nc_type var_type;
+    int varNDims;
+    int varDims[NC_MAX_VAR_DIMS];
+
+    // Get variable ID
     retval = nc_inq_varid(ncid, var_names[i].c_str(), &varid);
     if(retval) netcdfERR(retval);
 
-    var_values[i].resize(nvals);
+    // Get the variable's dimensions
+    nc_inq_var(ncid, varid, 0, &var_type, &varNDims, varDims, 0);
+    assert(varNDims == 3);
 
-    retval = nc_get_vara_double(ncid, varid, start, counts, &var_values[i][0]);
+    // Turn var_ids into names & store
+    cout << "Variable " << var_names[i] << " has " << varNDims << " dimensions: ";
+    vars[i].dims.resize(varNDims);
+    for (int j = 0; j < varNDims; j++){
+      vars[i].dims[j] = dim_map[varDims[j]];
+      cout << vars[i].dims[j] << " ";
+    }
+    cout << endl;
+
+    vars[i].values.resize(nvals);
+
+    // Read in the values
+    retval = nc_get_vara_double(ncid, varid, start, counts, &vars[i].values[0]);
     if(retval) netcdfERR(retval);
-
   }
 
   return 0;
+}
+
+// Create an example grid spec for 3D interpolation
+gridspec_t getTestGrid(){
+
+  gridspec_t my_gridspec;
+
+  my_gridspec.dx[0] = 50.0;
+  my_gridspec.dx[1] = 50.0;
+  my_gridspec.dx[2] = 10.0;
+
+  my_gridspec.x0[0] = -210000.0;
+  my_gridspec.x0[1] = -2135000.0;
+  my_gridspec.x0[2] = -1000.0;
+
+  my_gridspec.nx[0] = 1000.0;
+  my_gridspec.nx[1] = 1000.0;
+  my_gridspec.nx[2] = 100.0;
+
+  return my_gridspec;
+}
+
+// Given a vector<vector<...>> of coordinates, produce the gridspec
+gridspec_t getNetcdfGrid(coords_t coords){
+
+  gridspec_t ncGridspec;
+
+  // X, Y, Z
+  for (int i = 0; i < 3; i++){
+    ncGridspec.x0[i] = coords[i][0];
+    ncGridspec.dx[i] = coords[i][1] - coords[i][0];
+    ncGridspec.nx[i] = coords[i].size();
+  }
+
+  return ncGridspec;
+}
+
+/*
+Compute the coordinates of each output point in the
+netCDF index space. So, a point with local_coords = 2.5, 30.7, 19.7
+sits between the 8 input points with x = 2,3,  y=30,31, z=19,20
+
+Note - generalisation to rotated coordinates would require full
+specification of all 3 coordinates for every single output point.
+*/
+coords_t gridToGrid3D(gridspec_t inGrid, gridspec_t outGrid){
+
+  cout << "Hello from gridtoGrid3D" << endl;
+  coords_t local_coords(3);
+
+  double offsets[3];
+
+  for (int i = 0; i < 3; i++){
+    // Compute origin
+    offsets[i] = outGrid.x0[i] - inGrid.x0[i];
+    // pre-allocate space
+    local_coords[i].resize(outGrid.nx[i]);
+    for (int j = 0; j < outGrid.nx[i]; j++){
+      local_coords[i][j] = (offsets[i] + j * outGrid.dx[i]) / inGrid.dx[i];
+    }
+  }
+
+  return local_coords;
+}
+
+/*
+  Compute trilinear interpolation of fields in CPU
+  @param local_coords: coordinates of output points in 'input grid' index coord system
+  @param fields: the input data
+  @param fieldsGrid: the gridspec_t object defining origin, nx, dx of the input
+
+*/
+void cpuTrilinInterp(coords_t local_coords, vector<field_t<double>> fields, gridspec_t fieldsGrid){
+  int nFields = fields.size();
+
 }

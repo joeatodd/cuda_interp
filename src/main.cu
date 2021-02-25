@@ -35,6 +35,7 @@
 #include "memops.cu"
 #include "data.h"
 #include "kernels.cu"
+#include "types.h"
 
 using std::vector;
 using std::cout;
@@ -59,14 +60,19 @@ int main(){
 
   vector<std::string> dim_names = {"x","y","z"};
   vector<std::string> var_names = {"temperature"};
-  vector<vector<double>> fields(var_names.size()), coords(3);
+  // fields_t fields(var_names.size());
+  vector<field_t<double>> fields(var_names.size());
+  coords_t coords(3);
 
-  int retval = get_netcdf_data("Seasonal_Spinup_8_body_temp.nc", dim_names, var_names, coords, fields);
+  int retval = getNetcdfData("Seasonal_Spinup_8_body_temp.nc", dim_names, var_names, coords, fields);
   if(retval){cout << "NetCDF Error" << endl; return retval;}
 
   // TODO - determine dimension order here!
 
+
   // try the max function
+  // ***********************************************
+#if 0
   double *dfield, *dmax, *dtest;
   int nvals = fields[0].size();
   int blocksize = 512;
@@ -93,6 +99,31 @@ int main(){
   cout << "Max val from gpu: " << maxVal << endl;
   auto maxy = std::max_element(std::begin(fields[0]), std::end(fields[0]));
   cout << "Max val from cpu:" << *maxy << endl;
+
+  // It works!
+  // ***********************************************
+#endif
+
+  // To do here:
+
+  // Generate specification of new grid for interp (should be read in)
+  gridspec_t testGridSpec, ncGridSpec;
+  testGridSpec = getTestGrid();
+  ncGridSpec = getNetcdfGrid(coords);
+
+  int nPoints = testGridSpec.nx[0] * testGridSpec.nx[1] * testGridSpec.nx[2];
+
+  // Compute the coords of each point in new grid in the 'netcdf index' space
+  coords_t local_coords = gridToGrid3D(ncGridSpec, testGridSpec);
+
+  // Split new grid into thread blocks
+
+  // CPU interp for benchmarking
+  cpuTrilinInterp(local_coords, fields, ncGridSpec);
+
+  // Determine input data required for each block
+
+  // Interp kernel
 
   /* Allocate the 3D test array */
   int N = nx * ny * nz;
