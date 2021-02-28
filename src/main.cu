@@ -123,13 +123,18 @@ int main(){
   // Copy fields to new vector & delete all values
   // Note that we thus ensure that dimension order is consistent
   // between input & output (fields[i].dim_order)
-  vector<field_t<double>> interped_fields = fields;
-  for (auto field : fields) field.values.clear();
+  vector<field_t<double>> interped_fields(fields.size()); // TODO proper copy constructor?
+  for (unsigned int i = 0; i < fields.size(); i++){
+    interped_fields[i].name = fields[i].name;
+    interped_fields[i].dims = fields[i].dims;
+    interped_fields[i].dim_order = fields[i].dim_order;
+  }
 
   cpuTrilinInterp(localCoords, fields, ncGridSpec, testGridSpec, interped_fields);
 
   // Test write netcdf
-  retval = writeNetcdfData("meow.nc", testGridSpec, dim_names, interped_fields); // TODO read 'dim_names' from getNetcdf... and rewrite here in same order
+  retval = writeNetcdfData("meow.nc", testGridSpec, dim_names, interped_fields);
+  // TODO read 'dim_names' from getNetcdf... and rewrite here in same order
 
   // Determine input data required for each block
 

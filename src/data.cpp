@@ -145,10 +145,10 @@ int getNetcdfData(const std::string filename,
 
 // TODO - this is a template function but only writes doubles...
 template <typename T>
-int writeNetcdfData(const std::string filename,
-		     const gridspec_t gridspec,
-		     const vector<std::string> dim_names,
-		     const vector<field_t<T>> fields){
+int writeNetcdfData(const std::string &filename,
+		     const gridspec_t &gridspec,
+		     const vector<std::string> &dim_names,
+		     const vector<field_t<T>> &fields){
 
   int nDims = dim_names.size();
   int nVars = fields.size();
@@ -199,7 +199,6 @@ int writeNetcdfData(const std::string filename,
 
   // Write vars
   for (int i = 0; i < nVars; i++){
-    cout << "Debug first value: " << fields[i].values[0] << endl;
     retval = nc_put_var_double(ncid, var_ids[i], &fields[i].values[0]);
     if(retval) netcdfERR(retval);
   }
@@ -225,11 +224,11 @@ gridspec_t getTestGrid(){
 
   my_gridspec.x0[0] = -210000.0;
   my_gridspec.x0[1] = -2135000.0;
-  my_gridspec.x0[2] = -200.0;
+  my_gridspec.x0[2] = -1000.0;
 
-  my_gridspec.nx[0] = 150;
-  my_gridspec.nx[1] = 100;
-  my_gridspec.nx[2] = 10;
+  my_gridspec.nx[0] = 1000;
+  my_gridspec.nx[1] = 1000;
+  my_gridspec.nx[2] = 100;
 
   // 1000, 1000, 100 (i.e. x, y, z)
   cout << "Test Grid dims: ";
@@ -307,9 +306,9 @@ coords_t gridToGrid3D(gridspec_t inGrid, gridspec_t outGrid){
 
 */
 template <typename T>
-void cpuTrilinInterp(const coords_t local_coords, const vector<field_t<T>> fields,
-		     const gridspec_t fieldsGrid, const gridspec_t outputGrid,
-		     vector<field_t<T>> interped_fields){
+void cpuTrilinInterp(const coords_t &local_coords, const vector<field_t<T>> &fields,
+		     const gridspec_t &fieldsGrid, const gridspec_t &outputGrid,
+		     vector<field_t<T>> &interped_fields){
 
   // How many fields, dimensions and values?
   int nFields = fields.size();
@@ -434,7 +433,6 @@ void cpuTrilinInterp(const coords_t local_coords, const vector<field_t<T>> field
 	    value += weights[n] * fields[f].values[idx[n]];
 	  }
 	  interped_fields[f].values[outidx] = value;
-	  // cout << "Writing value " << value << " to idx " << outidx << endl;
 	}
       }
     }
@@ -455,19 +453,19 @@ template int getNetcdfData(const std::string filename,
 			   std::vector<std::vector<float>> &coords,
 			   std::vector<field_t<float>> &var_values);
 
-template void cpuTrilinInterp(const coords_t local_coords,
-			      const std::vector<field_t<float>> fields,
-			      const gridspec_t fieldsGrid,
-			      const gridspec_t outGrid,
-			      const std::vector<field_t<float>> interped_fields);
+template void cpuTrilinInterp(const coords_t &local_coords,
+			      const std::vector<field_t<float>> &fields,
+			      const gridspec_t &fieldsGrid,
+			      const gridspec_t &outGrid,
+			      std::vector<field_t<float>> &interped_fields);
 
-template void cpuTrilinInterp(const coords_t local_coords,
-			      const std::vector<field_t<double>> fields,
-			      const gridspec_t fieldsGrid,
-			      const gridspec_t outGrid,
-			      std::vector<field_t<double>> interped_fields);
+template void cpuTrilinInterp(const coords_t &local_coords,
+			      const std::vector<field_t<double>> &fields,
+			      const gridspec_t &fieldsGrid,
+			      const gridspec_t &outGrid,
+			      std::vector<field_t<double>> &interped_fields);
 
-template int writeNetcdfData(const std::string filename,
-		     const gridspec_t gridspec,
-		     const vector<std::string> dim_names,
-		     const vector<field_t<double>> fields);
+template int writeNetcdfData(const std::string &filename,
+		     const gridspec_t &gridspec,
+		     const vector<std::string> &dim_names,
+		     const vector<field_t<double>> &fields);
