@@ -114,12 +114,22 @@ int main(){
   int nPoints = testGridSpec.nx[0] * testGridSpec.nx[1] * testGridSpec.nx[2];
 
   // Compute the coords of each point in new grid in the 'netcdf index' space
-  coords_t local_coords = gridToGrid3D(ncGridSpec, testGridSpec);
+  coords_t localCoords = gridToGrid3D(ncGridSpec, testGridSpec);
 
   // Split new grid into thread blocks
 
   // CPU interp for benchmarking
-  cpuTrilinInterp(local_coords, fields, ncGridSpec);
+
+  // Copy fields to new vector & delete all values
+  // Note that we thus ensure that dimension order is consistent
+  // between input & output (fields[i].dim_order)
+  vector<field_t<double>> interped_fields = fields;
+  for (auto field : fields) field.values.clear();
+
+  cpuTrilinInterp(localCoords, fields, ncGridSpec, testGridSpec, interped_fields);
+
+  // Test write netcdf
+  retval = writeNetcdfData("meow.nc", testGridSpec, dim_names, interped_fields); // TODO read 'dim_names' from getNetcdf... and rewrite here in same order
 
   // Determine input data required for each block
 

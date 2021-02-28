@@ -6,17 +6,18 @@
 #include <vector>
 
 struct gridspec_t{
-  int nx[3];
-  double dx[3], x0[3];
+  std::vector<int> nx;
+  std::vector<double> dx, x0;
 };
 
 template <typename T>
 struct field_t{
+  std::string name;
   std::vector<T> values;
   std::vector<std::string> dims;
+  std::vector<int> dim_order;
 };
 
 typedef std::vector<std::vector<double>> coords_t;
-typedef std::vector<std::vector<double>> fields_t;
 
 #endif
