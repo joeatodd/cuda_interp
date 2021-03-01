@@ -1,3 +1,5 @@
+// CUDA kernels
+
 __global__
 void multVal(int n, float coeff, float *x){
   int idx = blockIdx.x * blockDim.x + threadIdx.x;

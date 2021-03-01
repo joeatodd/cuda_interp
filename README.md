@@ -8,7 +8,6 @@ Install with CMake using install.sh
 
 ## TODO
 
- - Define input format (or args?)
  - Implement trilinear interp kernel
  - Test templating for float/double
  - Check against e.g. numpy interp
