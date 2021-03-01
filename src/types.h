@@ -18,6 +18,12 @@ struct field_t{
   std::vector<int> dim_order;
 };
 
+struct config_t{
+  std::string input_filename;
+  std::string output_filename;
+  gridspec_t gridspec_out;
+};
+
 typedef std::vector<std::vector<double>> coords_t;
 
 #endif

@@ -36,6 +36,7 @@
 #include "data.h"
 #include "kernels.h"
 #include "types.h"
+#include "config.h"
 
 using std::vector;
 using std::cout;
@@ -51,7 +52,9 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
    }
 }
 
-int main(){
+int main(int argc, char* argv[]){
+
+  config_t config = getCfg(argv[1]);
 
   /* Declare dimensions for test array */
   int nx = 100, ny = 200, nz = 15; // Dimension
@@ -108,7 +111,9 @@ int main(){
 
   // Generate specification of new grid for interp (should be read in)
   gridspec_t testGridSpec, ncGridSpec;
-  testGridSpec = getTestGrid();
+  // testGridSpec = getTestGrid();
+  testGridSpec = config.gridspec_out;
+
   ncGridSpec = getNetcdfGrid(coords);
 
   int nPoints = testGridSpec.nx[0] * testGridSpec.nx[1] * testGridSpec.nx[2];
