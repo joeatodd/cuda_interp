@@ -34,7 +34,7 @@
 
 #include "memops.cu"
 #include "data.h"
-#include "kernels.cu"
+#include "kernels.h"
 #include "types.h"
 
 using std::vector;
