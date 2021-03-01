@@ -4,6 +4,8 @@ The aim of this tool is to accelerate 3D data interpolation using NVidia GPUs. F
 
 ## TODO
 
- - Get variable dimension ordering from NetCDF file
  - Define input format (or args?)
  - Implement trilinear interp kernel
+ - Test templating for float/double
+ - Makefile
+ - Check against e.g. numpy interp
