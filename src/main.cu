@@ -138,7 +138,7 @@ int main(int argc, char* argv[]){
   cpuTrilinInterp(localCoords, fields, ncGridSpec, testGridSpec, interped_fields);
 
   // Test write netcdf
-  retval = writeNetcdfData("meow.nc", testGridSpec, dim_names, interped_fields);
+  retval = writeNetcdfData(config.output_filename, testGridSpec, dim_names, interped_fields);
   // TODO read 'dim_names' from getNetcdf... and rewrite here in same order
 
   // Determine input data required for each block
