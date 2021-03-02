@@ -32,6 +32,9 @@
 #include <vector>
 #include <algorithm>
 
+#include <cuda_runtime_api.h>
+#include <cuda.h>
+
 #include "memops.cu"
 #include "data.h"
 #include "kernels.h"
@@ -41,16 +44,6 @@
 using std::vector;
 using std::cout;
 using std::endl;
-
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-   if (code != cudaSuccess)
-   {
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-      if (abort) exit(code);
-   }
-}
 
 int main(int argc, char* argv[]){
 
@@ -110,16 +103,16 @@ int main(int argc, char* argv[]){
   // To do here:
 
   // Generate specification of new grid for interp (should be read in)
-  gridspec_t testGridSpec, ncGridSpec;
-  // testGridSpec = getTestGrid();
-  testGridSpec = config.gridspec_out;
+  gridspec_t gridSpecOut, gridSpecIn;
+  // gridSpecOut = getTestGrid();
+  gridSpecOut = config.gridspec_out;
 
-  ncGridSpec = getNetcdfGrid(coords);
+  gridSpecIn = getNetcdfGrid(coords);
 
-  int nPoints = testGridSpec.nx[0] * testGridSpec.nx[1] * testGridSpec.nx[2];
+  int nPoints = gridSpecOut.nx[0] * gridSpecOut.nx[1] * gridSpecOut.nx[2];
 
   // Compute the coords of each point in new grid in the 'netcdf index' space
-  coords_t localCoords = gridToGrid3D(ncGridSpec, testGridSpec);
+  coords_t localCoords = gridToGrid3D(gridSpecIn, gridSpecOut);
 
   // Split new grid into thread blocks
 
@@ -135,11 +128,15 @@ int main(int argc, char* argv[]){
     interped_fields[i].dim_order = fields[i].dim_order;
   }
 
-  cpuTrilinInterp(localCoords, fields, ncGridSpec, testGridSpec, interped_fields);
+  bool test = false;
+  if(test){
+    cpuTrilinInterp(localCoords, fields, gridSpecIn, gridSpecOut, interped_fields);
 
-  // Test write netcdf
-  retval = writeNetcdfData(config.output_filename, testGridSpec, dim_names, interped_fields);
-  // TODO read 'dim_names' from getNetcdf... and rewrite here in same order
+    // Test write netcdf
+    retval = writeNetcdfData(config.output_filename, gridSpecOut, dim_names, interped_fields);
+  }
+
+  gpuTrilinInterp(gridSpecIn, gridSpecOut, fields, interped_fields);
 
   // Determine input data required for each block
 

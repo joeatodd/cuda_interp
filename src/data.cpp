@@ -214,10 +214,6 @@ gridspec_t getTestGrid(){
 
   gridspec_t my_gridspec;
 
-  my_gridspec.nx.resize(3);
-  my_gridspec.dx.resize(3);
-  my_gridspec.x0.resize(3);
-
   my_gridspec.dx[0] = 50.0;
   my_gridspec.dx[1] = 50.0;
   my_gridspec.dx[2] = 10.0;
@@ -244,10 +240,6 @@ gridspec_t getTestGrid(){
 gridspec_t getNetcdfGrid(coords_t coords){
 
   gridspec_t ncGridspec;
-
-  ncGridspec.nx.resize(3);
-  ncGridspec.dx.resize(3);
-  ncGridspec.x0.resize(3);
 
   // X, Y, Z
   for (int i = 0; i < 3; i++){
@@ -438,7 +430,6 @@ void cpuTrilinInterp(const coords_t &local_coords, const vector<field_t<T>> &fie
     }
   }
 }
-
 
 // Template instantiation
 template int getNetcdfData(const std::string filename,

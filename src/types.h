@@ -4,10 +4,24 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <cuda_runtime_api.h>
+#include <cuda.h>
+
+
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess)
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
 
 struct gridspec_t{
-  std::vector<int> nx;
-  std::vector<double> dx, x0;
+  int nx[3];
+  double dx[3], x0[3];
 };
 
 template <typename T>
