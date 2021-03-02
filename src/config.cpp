@@ -11,17 +11,17 @@ namespace po=boost::program_options;
 gridspec_t createOutGrid(const po::variables_map &varmap){
   gridspec_t outGridspec;
 
-  outGridspec.nx.push_back(varmap["Output.nx"].as<int>());
-  outGridspec.nx.push_back(varmap["Output.ny"].as<int>());
-  outGridspec.nx.push_back(varmap["Output.nz"].as<int>());
+  outGridspec.nx[0] = varmap["Output.nx"].as<int>();
+  outGridspec.nx[1] = varmap["Output.ny"].as<int>();
+  outGridspec.nx[2] = varmap["Output.nz"].as<int>();
 
-  outGridspec.dx.push_back(varmap["Output.dx"].as<double>());
-  outGridspec.dx.push_back(varmap["Output.dy"].as<double>());
-  outGridspec.dx.push_back(varmap["Output.dz"].as<double>());
+  outGridspec.dx[0] = varmap["Output.dx"].as<double>();
+  outGridspec.dx[1] = varmap["Output.dy"].as<double>();
+  outGridspec.dx[2] = varmap["Output.dz"].as<double>();
 
-  outGridspec.x0.push_back(varmap["Output.x0"].as<double>());
-  outGridspec.x0.push_back(varmap["Output.y0"].as<double>());
-  outGridspec.x0.push_back(varmap["Output.z0"].as<double>());
+  outGridspec.x0[0] = varmap["Output.x0"].as<double>();
+  outGridspec.x0[1] = varmap["Output.y0"].as<double>();
+  outGridspec.x0[2] = varmap["Output.z0"].as<double>();
 
   return outGridspec;
 }
