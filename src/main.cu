@@ -138,6 +138,11 @@ int main(int argc, char* argv[]){
 
   gpuTrilinInterp(gridSpecIn, gridSpecOut, fields, interped_fields);
 
+  retval = writeNetcdfData(config.output_filename, gridSpecOut, dim_names, interped_fields);
+  if(retval){cout << "NetCDF Error" << endl; return retval;}
+
+  return 0;
+
   // Determine input data required for each block
 
   // Interp kernel
