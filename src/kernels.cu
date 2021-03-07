@@ -4,6 +4,9 @@
 #include <cuda.h>
 #include <iostream>
 #include <math.h>
+using std::vector;
+using std::cout;
+using std::endl;
 
 __global__
 void multVal(int n, float coeff, float *x){
@@ -87,12 +90,15 @@ void trilin1(const gridspec_t *inGrid, const gridspec_t *outGrid, const int *di,
     gid[2] < nc[2];
 
   // Compute local coords & split into grid cells & in-cell coords
+  // Here lc is ordered X, Y, Z
   double lc[3];
   for (int i = 0; i < 3; i++){
     double offset = outGrid->x0[i] - inGrid->x0[i];
-    lc[i] = offset + (gid[di[i]] * outGrid->dx[di[i]])/inGrid->dx[di[i]];
+    lc[i] = (offset + gid[i] * outGrid->dx[i])/inGrid->dx[i];
   }
 
+  // Compute surrounding inGrid indices & grid-local coords
+  // Here ordered X, Y, Z (inherit from lc)
   double gridx_d[3];
   int gridx[3];
   for (int i=0; i<3; i++){
@@ -126,43 +132,48 @@ void trilin1(const gridspec_t *inGrid, const gridspec_t *outGrid, const int *di,
   // C_111
   weights[7] = lc[0]*lc[1]*lc[2];
 
+
+  // Weights are computed in X, Y, Z (not Z, Y, X), so we need to get same order idx
+  // idx[0] is x0, y0, z0
+  // idx[1] is x1, y0, z0
   int idx[8];
-  idx[0] = gridx[2]   + (gridx[1]   * nc[di[2]]) + ((gridx[0]   )* nc[di[1]] * nc[di[2]]);
-  idx[1] = gridx[2]   + (gridx[1]   * nc[di[2]]) + ((gridx[0] +1)* nc[di[1]] * nc[di[2]]);
-  idx[2] = gridx[2]   + (gridx[1]+1 * nc[di[2]]) + ((gridx[0]   )* nc[di[1]] * nc[di[2]]);
-  idx[3] = gridx[2]   + (gridx[1]+1 * nc[di[2]]) + ((gridx[0] +1)* nc[di[1]] * nc[di[2]]);
-  idx[4] = gridx[2]+1 + (gridx[1]   * nc[di[2]]) + ((gridx[0]   )* nc[di[1]] * nc[di[2]]);
-  idx[5] = gridx[2]+1 + (gridx[1]   * nc[di[2]]) + ((gridx[0] +1)* nc[di[1]] * nc[di[2]]);
-  idx[6] = gridx[2]+1 + (gridx[1]+1 * nc[di[2]]) + ((gridx[0]   )* nc[di[1]] * nc[di[2]]);
-  idx[7] = gridx[2]+1 + (gridx[1]+1 * nc[di[2]]) + ((gridx[0] +1)* nc[di[1]] * nc[di[2]]);
+  idx[0] = gridx[di[2]]   + (gridx[di[1]]   * nc[di[2]]) + ((gridx[di[0]]   )* nc[di[1]] * nc[di[2]]);
+  idx[1] = gridx[di[2]]+1 + (gridx[di[1]]   * nc[di[2]]) + ((gridx[di[0]]   )* nc[di[1]] * nc[di[2]]);
+  idx[2] = gridx[di[2]]   + (gridx[di[1]]+1 * nc[di[2]]) + ((gridx[di[0]]   )* nc[di[1]] * nc[di[2]]);
+  idx[3] = gridx[di[2]]+1 + (gridx[di[1]]+1 * nc[di[2]]) + ((gridx[di[0]]   )* nc[di[1]] * nc[di[2]]);
+  idx[4] = gridx[di[2]]   + (gridx[di[1]]   * nc[di[2]]) + ((gridx[di[0]] +1)* nc[di[1]] * nc[di[2]]);
+  idx[5] = gridx[di[2]]+1 + (gridx[di[1]]   * nc[di[2]]) + ((gridx[di[0]] +1)* nc[di[1]] * nc[di[2]]);
+  idx[6] = gridx[di[2]]   + (gridx[di[1]]+1 * nc[di[2]]) + ((gridx[di[0]] +1)* nc[di[1]] * nc[di[2]]);
+  idx[7] = gridx[di[2]]+1 + (gridx[di[1]]+1 * nc[di[2]]) + ((gridx[di[0]] +1)* nc[di[1]] * nc[di[2]]);
 
   if(active){
     double value = 0.0;
     for (int n = 0; n < 8; n++){
       value += weights[n] * inField[idx[n]];
     }
-
-    long unsigned int gcoord = gid[di[2]] + gid[di[1]]*nc[di[2]] + gid[di[0]] * nc[di[2]] * nc[di[1]];
-
+    unsigned int gcoord = gid[di[2]] + gid[di[1]]*nc[di[2]] + gid[di[0]] * nc[di[2]] * nc[di[1]];
     outField[gcoord] = value;
   }
 
 }
 
+  }
+
+}
+
 __host__
-void gpuTrilinInterp(const gridspec_t gridSpecIn, const gridspec_t gridSpecOut, const std::vector<field_t<double>> fieldsIn, std::vector<field_t<double>> fieldsOut){
 
-  dim3 gridSize(2,2,2);
-  dim3 blockSize(8,4,10);
+__host__
+void gpuTrilinInterp(const gridspec_t &gridSpecIn, const gridspec_t &gridSpecOut, const std::vector<field_t<double>> &fieldsIn, std::vector<field_t<double>> &fieldsOut){
 
-  int gridMemsize = sizeof(gridspec_t);
-  std::cout << "Gridspec_t size is: " << gridMemsize << std::endl;
+  int grid_tMemSize = sizeof(gridspec_t);
+  std::cout << "Gridspec_t size is: " << grid_tMemSize << std::endl;
 
   gridspec_t * dGridSpecIn, * dGridSpecOut;
   int * dDimOrder;
 
-  gpuErrchk(cudaMalloc((void **)&dGridSpecIn, gridMemsize));
-  gpuErrchk(cudaMalloc((void **)&dGridSpecOut, gridMemsize));
+  gpuErrchk(cudaMalloc((void **)&dGridSpecIn, grid_tMemSize));
+  gpuErrchk(cudaMalloc((void **)&dGridSpecOut, grid_tMemSize));
   gpuErrchk(cudaMalloc((void **)&dDimOrder, sizeof(int)*3));
 
   long unsigned int npts_out = gridSpecOut.nx[0] * gridSpecOut.nx[1] * gridSpecOut.nx[2];
@@ -184,13 +195,15 @@ void gpuTrilinInterp(const gridspec_t gridSpecIn, const gridspec_t gridSpecOut, 
   // localCoord = (double*)malloc(coordMemSize);
 
   // Copy data to GPU
-  gpuErrchk(cudaMemcpy(dGridSpecIn, &gridSpecIn, gridMemsize, cudaMemcpyHostToDevice));
-  gpuErrchk(cudaMemcpy(dGridSpecOut, &gridSpecOut, gridMemsize, cudaMemcpyHostToDevice));
+  gpuErrchk(cudaMemcpy(dGridSpecIn, &gridSpecIn, grid_tMemSize, cudaMemcpyHostToDevice));
+  gpuErrchk(cudaMemcpy(dGridSpecOut, &gridSpecOut, grid_tMemSize, cudaMemcpyHostToDevice));
   gpuErrchk(cudaMemcpy(dDimOrder, &fieldsIn[0].dim_order[0], sizeof(int)*3, cudaMemcpyHostToDevice));
   gpuErrchk(cudaMemcpy(dFieldIn, &fieldsIn[0].values[0], inFieldMemSize, cudaMemcpyHostToDevice));
 
-  trilin1<<<gridSize, blockSize>>>(dGridSpecIn, dGridSpecOut, &fieldsIn[0].dim_order[0], dFieldIn, dFieldOut);
+  trilin1<<<gridSize, blockSize>>>(dGridSpecIn, dGridSpecOut, dDimOrder, dFieldIn, dFieldOut);
 
   fieldsOut[0].values.resize(npts_out);
+
   gpuErrchk(cudaMemcpy(&fieldsOut[0].values[0], dFieldOut, outFieldMemSize, cudaMemcpyDeviceToHost));
+  std::cout << "First few vals: " << fieldsOut[0].values[0] << fieldsOut[0].values[1] << fieldsOut[0].values[2] << std::endl;
 }

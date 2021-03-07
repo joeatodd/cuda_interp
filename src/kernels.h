@@ -17,4 +17,4 @@ __global__
 void trilin1(gridspec_t *inGrid, gridspec_t *outGrid);
 
 __host__
-void gpuTrilinInterp(const gridspec_t gridSpecIn, const gridspec_t gridspecOut, const std::vector<field_t<double>> fieldsIn, std::vector<field_t<double>> fieldsOut);
+void gpuTrilinInterp(const gridspec_t &gridSpecIn, const gridspec_t &gridspecOut, const std::vector<field_t<double>> &fieldsIn, std::vector<field_t<double>> &fieldsOut);
