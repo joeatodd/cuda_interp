@@ -132,8 +132,6 @@ int main(int argc, char* argv[]){
   if(test){
     cpuTrilinInterp(localCoords, fields, gridSpecIn, gridSpecOut, interped_fields);
 
-    // Test write netcdf
-    retval = writeNetcdfData(config.output_filename, gridSpecOut, dim_names, interped_fields);
   }
 
   gpuTrilinInterp(gridSpecIn, gridSpecOut, fields, interped_fields);
