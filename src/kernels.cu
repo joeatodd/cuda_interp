@@ -201,17 +201,12 @@ First compute the prime factors of the blockSize (lots of 2s!), then find which
 dimension of the gridspec_t best fits this factor (least waste in other 2 dims)
 */
 __host__
-void computeBlockGridDims(const gridspec_t &gridSpecOut, int blockSize){
+void computeBlockGridDims(const gridspec_t &gridSpecOut, const int blockSizeOcc, dim3 &gridDims, dim3 &blockDims){
 
-  vector<int> blockFactors = primeFactors(blockSize);
-
-  std::cout << "blockFactors: ";
-  for (auto it : blockFactors) std::cout << it << " ";
-  std::cout << std::endl;
+  vector<int> blockFactors = primeFactors(blockSizeOcc);
 
   std::array<int,3> currDims = {1,1,1};
   std::array<int,3> gridspecDims = {gridSpecOut.nx[0], gridSpecOut.nx[1], gridSpecOut.nx[2]};
-  std::array<int,3> remainingDims = gridspecDims;
 
   // Cycle prime factors of block size
   for (auto factor : blockFactors){
@@ -239,16 +234,24 @@ void computeBlockGridDims(const gridspec_t &gridSpecOut, int blockSize){
   }
 
   std::array<double, 3> gridDimsFloat;
-  std::array<int,3> gridDims;
+  std::array<int,3> gridDimsArr;
   int totalBlocks = 1;
   for (int i = 0; i < 3; i++){
     gridDimsFloat[i] = static_cast<double>(gridspecDims[i]) / static_cast<double>(currDims[i]);
-    gridDims[i] = static_cast<int>(ceil(gridDimsFloat[i]));
-    totalBlocks *= gridDims[i];
+    gridDimsArr[i] = static_cast<int>(ceil(gridDimsFloat[i]));
+    totalBlocks *= gridDimsArr[i];
   }
 
+  blockDims.x = currDims[0];
+  blockDims.y = currDims[1];
+  blockDims.z = currDims[2];
+
+  gridDims.x = gridDimsArr[0];
+  gridDims.y = gridDimsArr[1];
+  gridDims.z = gridDimsArr[2];
+
   int nPts = gridspecDims[0] * gridspecDims[1] * gridspecDims[2];
-  int theoryBlocks = (nPts + blockSize - 1) / blockSize;
+  int theoryBlocks = (nPts + blockSizeOcc - 1) / blockSizeOcc;
 
   cout << "Theoretical min blocks: " << theoryBlocks << endl;
   cout << "Actual num blocks: "  << totalBlocks << endl;
@@ -282,6 +285,12 @@ void gpuTrilinInterp(const gridspec_t &gridSpecIn, const gridspec_t &gridSpecOut
   std::cout << "npts in: " << npts_in << " mem size: " << inFieldMemSize << std::endl;
   std::cout << "npts out: " << npts_out << " mem size: " << outFieldMemSize << std::endl;
 
+  std::cout << "GridSpecIn nx: " << gridSpecIn.nx[0] << " " << gridSpecIn.nx[1] << " " << gridSpecIn.nx[2] << std::endl;
+  std::cout << "GridSpecOut nx: " << gridSpecOut.nx[0] << " " << gridSpecOut.nx[1] << " " << gridSpecOut.nx[2] << std::endl;
+
+  std::cout << "GridSpecIn dx: " << gridSpecIn.dx[0] << " " << gridSpecIn.dx[1] << " " << gridSpecIn.dx[2] << std::endl;
+  std::cout << "GridSpecOut dx: " << gridSpecOut.dx[0] << " " << gridSpecOut.dx[1] << " " << gridSpecOut.dx[2] << std::endl;
+
   gpuErrchk(cudaMalloc((void **)&dFieldIn, inFieldMemSize));
   gpuErrchk(cudaMalloc((void **)&dFieldOut, outFieldMemSize));
 
@@ -299,15 +308,15 @@ void gpuTrilinInterp(const gridspec_t &gridSpecIn, const gridspec_t &gridSpecOut
 
   std::cout << "Occupancy results, blocksize: " << blockSize1D << std::endl;
 
-  computeBlockGridDims(gridSpecOut, blockSize1D);
-  dim3 gridSize(2,2,2);
-  dim3 blockSize(8,4,10);
+  dim3 gridSize, blockSize;
+  computeBlockGridDims(gridSpecOut, blockSize1D, gridSize, blockSize);
 
+  std::cout << "Grid size: " << gridSize.x << " " <<  gridSize.y << " " <<  gridSize.z << std::endl;
+  std::cout << "Block size: " << blockSize.x << " " <<  blockSize.y << " " <<  blockSize.z << std::endl;
 
   trilin1<<<gridSize, blockSize>>>(dGridSpecIn, dGridSpecOut, dDimOrder, dFieldIn, dFieldOut);
 
   fieldsOut[0].values.resize(npts_out);
 
   gpuErrchk(cudaMemcpy(&fieldsOut[0].values[0], dFieldOut, outFieldMemSize, cudaMemcpyDeviceToHost));
-  std::cout << "First few vals: " << fieldsOut[0].values[0] << fieldsOut[0].values[1] << fieldsOut[0].values[2] << std::endl;
 }
