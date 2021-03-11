@@ -9,3 +9,5 @@ include_directories( ${Boost_INCLUDE_DIRS} )
 target_link_libraries(CudaInterp netcdf ${Boost_LIBRARIES})
 
 target_compile_options(CudaInterp PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-gencode arch=compute_70,code=sm_70>)
+
+INSTALL(TARGETS CudaInterp DESTINATION bin)
