@@ -75,21 +75,23 @@ void copyVal(int N, double *in_arr, double *out_arr){
 __global__
 void trilin1(const gridspec_t *inGrid, const gridspec_t *outGrid, const int *di, double *inField, double *outField){
 
-  // TODO - runs fail at the moment if all the code here is executed and any attempt is made to write
-  // to outField[0] (or any other value?). So, memory corruption in the preceding code.
-  // outField[0] = 1.0;
+  // 3D global index
   unsigned int gid[3];
   gid[0] = blockIdx.x*blockDim.x + threadIdx.x;
   gid[1] = blockIdx.y*blockDim.y + threadIdx.y;
   gid[2] = blockIdx.z*blockDim.z + threadIdx.z;
 
-  unsigned int nc[3];
-  for (int i = 0; i < 3; i++) nc[i] = outGrid->nx[i];
+  // Copy grid specs to registers
+  unsigned int nc_in[3], nc_out[3];
+  for (int i = 0; i < 3; i++){
+    nc_out[i] = outGrid->nx[i];
+    nc_in[i]  = inGrid->nx[i];
+  }
 
   // Are we valid?
-  bool active = gid[0] < nc[0] &&
-    gid[1] < nc[1] &&
-    gid[2] < nc[2];
+  bool active = gid[0] < nc_out[0] &&
+    gid[1] < nc_out[1] &&
+    gid[2] < nc_out[2];
 
   // Compute local coords & split into grid cells & in-cell coords
   // Here lc is ordered X, Y, Z
@@ -105,7 +107,7 @@ void trilin1(const gridspec_t *inGrid, const gridspec_t *outGrid, const int *di,
   int gridx[3];
   for (int i=0; i<3; i++){
     lc[i] = modf(lc[i], &gridx_d[i]);
-    gridx[i] = (int)gridx_d[i];
+    gridx[i] = static_cast<int>(gridx_d[i]);
   }
 
   // Compute interpolation weights
@@ -139,21 +141,23 @@ void trilin1(const gridspec_t *inGrid, const gridspec_t *outGrid, const int *di,
   // idx[0] is x0, y0, z0
   // idx[1] is x1, y0, z0
   int idx[8];
-  idx[0] = gridx[di[2]]   + (gridx[di[1]]   * nc[di[2]]) + ((gridx[di[0]]   )* nc[di[1]] * nc[di[2]]);
-  idx[1] = gridx[di[2]]+1 + (gridx[di[1]]   * nc[di[2]]) + ((gridx[di[0]]   )* nc[di[1]] * nc[di[2]]);
-  idx[2] = gridx[di[2]]   + (gridx[di[1]]+1 * nc[di[2]]) + ((gridx[di[0]]   )* nc[di[1]] * nc[di[2]]);
-  idx[3] = gridx[di[2]]+1 + (gridx[di[1]]+1 * nc[di[2]]) + ((gridx[di[0]]   )* nc[di[1]] * nc[di[2]]);
-  idx[4] = gridx[di[2]]   + (gridx[di[1]]   * nc[di[2]]) + ((gridx[di[0]] +1)* nc[di[1]] * nc[di[2]]);
-  idx[5] = gridx[di[2]]+1 + (gridx[di[1]]   * nc[di[2]]) + ((gridx[di[0]] +1)* nc[di[1]] * nc[di[2]]);
-  idx[6] = gridx[di[2]]   + (gridx[di[1]]+1 * nc[di[2]]) + ((gridx[di[0]] +1)* nc[di[1]] * nc[di[2]]);
-  idx[7] = gridx[di[2]]+1 + (gridx[di[1]]+1 * nc[di[2]]) + ((gridx[di[0]] +1)* nc[di[1]] * nc[di[2]]);
+  idx[0] = gridx[di[2]]   + ((gridx[di[1]]  ) * nc_in[di[2]]) + ((gridx[di[0]]   )* nc_in[di[1]] * nc_in[di[2]]);
+  idx[1] = gridx[di[2]]+1 + ((gridx[di[1]]  ) * nc_in[di[2]]) + ((gridx[di[0]]   )* nc_in[di[1]] * nc_in[di[2]]);
+  idx[2] = gridx[di[2]]   + ((gridx[di[1]]+1) * nc_in[di[2]]) + ((gridx[di[0]]   )* nc_in[di[1]] * nc_in[di[2]]);
+  idx[3] = gridx[di[2]]+1 + ((gridx[di[1]]+1) * nc_in[di[2]]) + ((gridx[di[0]]   )* nc_in[di[1]] * nc_in[di[2]]);
+  idx[4] = gridx[di[2]]   + ((gridx[di[1]]  ) * nc_in[di[2]]) + ((gridx[di[0]] +1)* nc_in[di[1]] * nc_in[di[2]]);
+  idx[5] = gridx[di[2]]+1 + ((gridx[di[1]]  ) * nc_in[di[2]]) + ((gridx[di[0]] +1)* nc_in[di[1]] * nc_in[di[2]]);
+  idx[6] = gridx[di[2]]   + ((gridx[di[1]]+1) * nc_in[di[2]]) + ((gridx[di[0]] +1)* nc_in[di[1]] * nc_in[di[2]]);
+  idx[7] = gridx[di[2]]+1 + ((gridx[di[1]]+1) * nc_in[di[2]]) + ((gridx[di[0]] +1)* nc_in[di[1]] * nc_in[di[2]]);
 
   if(active){
     double value = 0.0;
     for (int n = 0; n < 8; n++){
       value += weights[n] * inField[idx[n]];
     }
-    unsigned int gcoord = gid[di[2]] + gid[di[1]]*nc[di[2]] + gid[di[0]] * nc[di[2]] * nc[di[1]];
+    // Compute flat idx for output
+    unsigned int gcoord = gid[di[2]] + gid[di[1]]*nc_out[di[2]] +
+      gid[di[0]] * nc_out[di[2]] * nc_out[di[1]];
     outField[gcoord] = value;
   }
 
