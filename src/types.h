@@ -34,6 +34,7 @@ struct field_t{
 
 struct config_t{
   std::string input_filename;
+  std::vector<std::string> dim_names, variables;
   std::string output_filename;
   gridspec_t gridspec_out;
 };

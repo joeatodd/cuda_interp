@@ -32,6 +32,9 @@ config_t getCfg(std::string config_fname){
   po::options_description opts("Options");
 
   opts.add_options() ("Input.filename", "Input filename");
+  opts.add_options() ("Input.dimension", po::value<std::vector<std::string>>()->multitoken());
+  opts.add_options() ("Input.variable", po::value<std::vector<std::string>>()->multitoken());
+
   opts.add_options() ("Output.filename", "Output filename");
   opts.add_options() ("Output.x0", po::value<double>());
   opts.add_options() ("Output.y0", po::value<double>());
@@ -45,7 +48,6 @@ config_t getCfg(std::string config_fname){
   opts.add_options() ("Output.ny", po::value<int>());
   opts.add_options() ("Output.nz", po::value<int>());
 
-
   std::ifstream config_stream(config_fname.c_str());
   po::variables_map vars;
   po::store(po::parse_config_file(config_stream, opts), vars);
@@ -53,7 +55,8 @@ config_t getCfg(std::string config_fname){
 
   config.input_filename = vars["Input.filename"].as<std::string>();
   config.output_filename = vars["Output.filename"].as<std::string>();
-
+  config.dim_names = vars["Input.dimension"].as<std::vector<std::string>>();
+  config.variables = vars["Input.variable"].as<std::vector<std::string>>();
   config.gridspec_out = createOutGrid(vars);
 
   std::cout << "Infile: " << vars["Input.filename"].as<std::string>() << std::endl;
