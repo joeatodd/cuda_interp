@@ -19,14 +19,6 @@ void multVal(int n, float coeff, float *x){
   }
 }
 
-// 3D pitched equivalent of prev
-__global__
-void multVal3D(cudaPitchedPtr pitchPtr, cudaExtent ext, float coeff){
-  size_t pitch = pitchPtr.pitch;
-
-
-}
-
 // Max value (via recursive kernel calls)
 // Makes use of recast trick because templated shared memory isn't allowed
 template<typename T>
@@ -55,14 +47,6 @@ void maxVal(int N, T *arr, T *arr_out){
 
   if(gid < N && tid==0){
     arr_out[blockIdx.x] = shared[tid];
-  }
-}
-
-__global__
-void copyVal(int N, double *in_arr, double *out_arr){
-  unsigned int gid = blockIdx.x*blockDim.x + threadIdx.x;
-  if(gid < N){
-    out_arr[gid] = in_arr[gid];
   }
 }
 
