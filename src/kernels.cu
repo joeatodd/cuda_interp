@@ -6,6 +6,7 @@
 #include <math.h>
 #include <algorithm>
 #include <assert.h>
+#include <float.h>
 
 using std::vector;
 using std::cout;
@@ -142,7 +143,7 @@ void trilin1(const gridspec_t *inGrid, const gridspec_t *outGrid, const int *di,
       value += weights[n] * inField[idx[n]];
       weightSum += weights[n];
     }
-    assert(fabs(weightSum - 1) < 1.0e-10);
+    assert(fabs(weightSum - 1) < DBL_EPSILON);
     // Compute flat idx for output
     unsigned int gcoord = gid[di[2]] + gid[di[1]]*nc_out[di[2]] +
       gid[di[0]] * nc_out[di[2]] * nc_out[di[1]];

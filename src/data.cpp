@@ -8,6 +8,7 @@
 #include "types.h"
 #include <math.h>
 #include <numeric>
+#include <limits>
 
 #define netcdfERR(e) {printf("Error: %s\n", nc_strerror(e)); return 2;}
 
@@ -397,7 +398,7 @@ void cpuTrilinInterp(const coords_t &local_coords, const vector<field_t<T>> &fie
 
 	T weightsum = 0;
 	weightsum = std::accumulate(weights, weights+8, weightsum);
-	assert(fabs(weightsum - 1) < 1.0e-10); // TODO get actual machine eps
+	assert(fabs(weightsum - 1) < std::numeric_limits<T>::epsilon());
 
 	idx[0] = flatIdx(ii,   jj,   kk,   fieldsGrid.nx[di[1]], fieldsGrid.nx[di[2]]);
 	idx[1] = flatIdx(ii+1, jj,   kk,   fieldsGrid.nx[di[1]], fieldsGrid.nx[di[2]]);
