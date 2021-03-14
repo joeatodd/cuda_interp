@@ -57,40 +57,6 @@ int main(int argc, char* argv[]){
   int retval = getNetcdfData(config.input_filename, config.dim_names, config.variables, coords, fields);
   if(retval){cout << "NetCDF Error" << endl; return retval;}
 
-  // try the max function
-  // ***********************************************
-#if 0
-  double *dfield, *dmax, *dtest;
-  int nvals = fields[0].size();
-  int blocksize = 512;
-  int nblocks = (nvals + blocksize - 1) / blocksize;
-
-  dtest = (double*)malloc(nvals*sizeof(double));
-  gpuErrchk(cudaMalloc((void **)&dfield, nvals*sizeof(double)));
-  gpuErrchk(cudaMalloc((void **)&dmax, nvals*sizeof(double))); // TODO too big!
-
-  gpuErrchk(cudaMemcpy(dfield, &fields[0][0],nvals*sizeof(double), cudaMemcpyHostToDevice));
-
-  // Repeated calls to kernel w/ block-level reduction
-  int cnt = nvals;
-  while(cnt > 1){
-    cout << "Operating on cnt: " << cnt << endl;
-    maxVal<<<nblocks, blocksize, blocksize*sizeof(double)>>>(cnt, dfield, dmax);
-    gpuErrchk(cudaMemcpy(dfield, dmax, nvals*sizeof(double) ,cudaMemcpyDeviceToDevice));
-    cnt = (cnt + blocksize - 1) / blocksize;
-  }
-
-  double maxVal;
-  gpuErrchk(cudaMemcpy(&maxVal, dmax, sizeof(double), cudaMemcpyDeviceToHost));
-
-  cout << "Max val from gpu: " << maxVal << endl;
-  auto maxy = std::max_element(std::begin(fields[0]), std::end(fields[0]));
-  cout << "Max val from cpu:" << *maxy << endl;
-
-  // It works!
-  // ***********************************************
-#endif
-
   // Generate specification of new grid for interp (should be read in)
   gridspec_t gridSpecOut, gridSpecIn;
   gridSpecOut = config.gridspec_out;

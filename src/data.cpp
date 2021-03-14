@@ -30,7 +30,7 @@ int flatIdx(int i, int j, int k, int nj, int nk){
    the machine I'm using, so I'm mixing C++ and C code here.
 
    input  filename NetCDF filename to read
-   input  dim_names Prescribed dimensions of the data (TODO could read these instead)
+   input  dim_names Prescribed dimensions of the data
    input  var_names Variable(s) to read
    output  coords The coordinates of the data (output)
    output  vars The data array for each variable
