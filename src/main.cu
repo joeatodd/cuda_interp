@@ -35,7 +35,6 @@
 #include <cuda_runtime_api.h>
 #include <cuda.h>
 
-#include "memops.cu"
 #include "data.h"
 #include "kernels.h"
 #include "types.h"
